@@ -34,4 +34,5 @@ target_link_libraries(av-it PRIVATE
 
 add_executable(bullet bullet.cpp)
 find_package(Bullet CONFIG REQUIRED)
-target_link_libraries(bullet PRIVATE ${BULLET_LIBRARIES})
+find_package(raylib CONFIG REQUIRED)
+target_link_libraries(bullet PRIVATE raylib ${BULLET_LIBRARIES})

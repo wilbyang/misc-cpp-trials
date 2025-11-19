@@ -1,100 +1,124 @@
-#include <iostream>
+#include "raylib.h"
 #include <btBulletDynamicsCommon.h>
+#include <iostream>
 
 int main() {
-    // --- 1. 初始化物理世界配置 ---
+    // ---------------------------------------------------------
+    // 1. Raylib 初始化 (图形部分)
+    // ---------------------------------------------------------
+    const int screenWidth = 800;
+    const int screenHeight = 600;
+    InitWindow(screenWidth, screenHeight, "Bullet3 + Raylib Example");
     
-    // 碰撞配置：用于管理内存和碰撞算法
-    btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
-    
-    // 碰撞调度器：处理碰撞对
-    btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
-    
-    // 宽相（Broadphase）接口：快速检测潜在的碰撞对（这里使用动态包围体层次结构 Dbvt）
+    // 定义摄像机
+    Camera3D camera = { 0 };
+    camera.position = Vector3{ 10.0f, 10.0f, 10.0f }; // 相机位置
+    camera.target = Vector3{ 0.0f, 0.0f, 0.0f };      // 相机看向原点
+    camera.up = Vector3{ 0.0f, 1.0f, 0.0f };          // Y轴向上
+    camera.fovy = 45.0f;                                // 视野
+    camera.projection = CAMERA_PERSPECTIVE;
+
+    SetTargetFPS(60); // 锁定 60 帧
+
+    // ---------------------------------------------------------
+    // 2. Bullet 初始化 (物理部分)
+    // ---------------------------------------------------------
+    btDefaultCollisionConfiguration* collisionConfig = new btDefaultCollisionConfiguration();
+    btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfig);
     btBroadphaseInterface* overlappingPairCache = new btDbvtBroadphase();
-    
-    // 约束求解器：解决接触、关节等约束
     btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+    btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfig);
     
-    // 创建动态世界
-    btDiscreteDynamicsWorld* dynamicsWorld = new btDiscreteDynamicsWorld(dispatcher, overlappingPairCache, solver, collisionConfiguration);
-    
-    // 设置重力 (Y轴向下 -10)
     dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
-    // --- 2. 创建地面 (静态刚体) ---
-    
-    // 创建形状：静态平面 (法线向上 (0,1,0)，距离原点 0)
-    btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 1);
-    
-    // 运动状态：默认位置和旋转 (Identity)
-    btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
-    
-    // 构建刚体信息：质量为 0 表示它是静态的（不动的）
-    btRigidBody::btRigidBodyConstructionInfo groundRigidBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
-    btRigidBody* groundRigidBody = new btRigidBody(groundRigidBodyCI);
-    
-    // 将地面添加到世界中
-    dynamicsWorld->addRigidBody(groundRigidBody);
+    // --- 创建地面 ---
+    btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0); // Y=0 处的平面
+    btDefaultMotionState* groundMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+    btRigidBody::btRigidBodyConstructionInfo groundBodyCI(0, groundMotionState, groundShape, btVector3(0, 0, 0));
+    btRigidBody* groundBody = new btRigidBody(groundBodyCI);
+    dynamicsWorld->addRigidBody(groundBody);
 
-    // --- 3. 创建下落的盒子 (动态刚体) ---
-    
-    // 创建形状：盒子 (半长宽高均为 1)
-    btCollisionShape* fallShape = new btBoxShape(btVector3(1, 1, 1));
-    
-    // 运动状态：初始位置在 Y=50 的高度
-    btDefaultMotionState* fallMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 50, 0)));
-    
+    // --- 创建盒子 ---
+    // 注意：Raylib 的 DrawCube 参数是全长，Bullet 的 BoxShape 参数是半长
+    btCollisionShape* boxShape = new btBoxShape(btVector3(1, 1, 1)); // 2x2x2 的盒子
+    btDefaultMotionState* boxMotionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
     btScalar mass = 1;
-    btVector3 fallInertia(0, 0, 0);
-    // 动态物体必须计算局部惯性
-    fallShape->calculateLocalInertia(mass, fallInertia);
-    
-    // 构建刚体
-    btRigidBody::btRigidBodyConstructionInfo fallRigidBodyCI(mass, fallMotionState, fallShape, fallInertia);
-    btRigidBody* fallRigidBody = new btRigidBody(fallRigidBodyCI);
-    
-    // 将盒子添加到世界中
-    dynamicsWorld->addRigidBody(fallRigidBody);
+    btVector3 boxInertia(0, 0, 0);
+    boxShape->calculateLocalInertia(mass, boxInertia);
+    btRigidBody::btRigidBodyConstructionInfo boxBodyCI(mass, boxMotionState, boxShape, boxInertia);
+    btRigidBody* boxBody = new btRigidBody(boxBodyCI);
+    dynamicsWorld->addRigidBody(boxBody);
 
-    // --- 4. 模拟循环 ---
-    
-    std::cout << "Start Simulation..." << std::endl;
-    
-    // 模拟 300 步 (假设 60Hz，大约 5 秒)
-    for (int i = 0; i < 300; i++) {
-        // 步进模拟：时间步长 1/60 秒
+    // ---------------------------------------------------------
+    // 3. 主循环
+    // ---------------------------------------------------------
+    while (!WindowShouldClose()) {
+        // --- A. 物理模拟步进 ---
         dynamicsWorld->stepSimulation(1.0f / 60.0f, 10);
 
-        // 获取盒子当前的变化矩阵
-        btTransform trans;
-        fallRigidBody->getMotionState()->getWorldTransform(trans);
+        // --- B. 用户输入 (重置) ---
+        if (IsKeyPressed(KEY_SPACE)) {
+            // 重置位置到高空
+            btTransform tr;
+            tr.setIdentity();
+            tr.setOrigin(btVector3(0, 10, 0));
+            boxBody->setWorldTransform(tr);
+            boxBody->getMotionState()->setWorldTransform(tr);
+            // 清除线速度和角速度，否则它会带着之前的速度瞬移
+            boxBody->setLinearVelocity(btVector3(0, 0, 0));
+            boxBody->setAngularVelocity(btVector3(0, 0, 0));
+            // 清除受力缓存
+            boxBody->clearForces(); 
+        }
 
-        // 输出高度 (Y坐标)
-        std::cout << "Step " << i << " : Height = " << trans.getOrigin().getY() << std::endl;
-        
-        // 当物体接近地面时（地面在 -1，盒子半径 1，中心接近 0），它应该停止下降
+        // --- C. 获取物理数据用于渲染 ---
+        btTransform trans;
+        boxBody->getMotionState()->getWorldTransform(trans);
+        float x = trans.getOrigin().getX();
+        float y = trans.getOrigin().getY();
+        float z = trans.getOrigin().getZ();
+
+        // --- D. 渲染绘制 ---
+        BeginDrawing();
+            ClearBackground(RAYWHITE);
+
+            BeginMode3D(camera);
+                // 绘制地面 (Raylib Grid)
+                DrawGrid(20, 1.0f);
+                
+                // 绘制盒子 (位置来自 Bullet)
+                // 大小是 2.0f，因为 Bullet 的半长是 1
+                DrawCube(Vector3{x, y, z}, 2.0f, 2.0f, 2.0f, RED); 
+                DrawCubeWires(Vector3{x, y, z}, 2.0f, 2.0f, 2.0f, MAROON);
+
+            EndMode3D();
+
+            DrawText("Press SPACE to reset box", 10, 10, 20, DARKGRAY);
+            DrawText(TextFormat("Height: %.2f", y), 10, 40, 20, DARKGRAY);
+
+        EndDrawing();
     }
 
-    // --- 5. 清理内存 (非常重要) ---
-    
-    // 移除刚体
-    dynamicsWorld->removeRigidBody(fallRigidBody);
-    delete fallRigidBody->getMotionState();
-    delete fallRigidBody;
-    delete fallShape;
+    // ---------------------------------------------------------
+    // 4. 清理
+    // ---------------------------------------------------------
+    dynamicsWorld->removeRigidBody(boxBody);
+    delete boxBody->getMotionState();
+    delete boxBody;
+    delete boxShape;
 
-    dynamicsWorld->removeRigidBody(groundRigidBody);
-    delete groundRigidBody->getMotionState();
-    delete groundRigidBody;
+    dynamicsWorld->removeRigidBody(groundBody);
+    delete groundBody->getMotionState();
+    delete groundBody;
     delete groundShape;
 
-    // 删除核心组件
     delete dynamicsWorld;
     delete solver;
     delete overlappingPairCache;
     delete dispatcher;
-    delete collisionConfiguration;
+    delete collisionConfig;
+
+    CloseWindow();
 
     return 0;
 }
