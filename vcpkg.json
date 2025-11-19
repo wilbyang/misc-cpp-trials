@@ -1,0 +1,10 @@
+{
+  "name": "helloworld",
+  "version": "1.0.0",
+  "dependencies": [
+    "ffmpeg",
+    "fmt",
+    "highway",
+    "bullet3"
+  ]
+}
