@@ -36,3 +36,6 @@ add_executable(bullet bullet.cpp)
 find_package(Bullet CONFIG REQUIRED)
 find_package(raylib CONFIG REQUIRED)
 target_link_libraries(bullet PRIVATE raylib ${BULLET_LIBRARIES})
+
+add_executable(tray-app WIN32 tray-app.cpp)
+
