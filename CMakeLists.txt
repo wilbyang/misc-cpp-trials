@@ -47,3 +47,6 @@ set_target_properties(coroutine-file PROPERTIES CXX_STANDARD 20)
 add_executable(ranges-container ranges-container.cpp)
 set_target_properties(ranges-container PROPERTIES CXX_STANDARD 20)
 
+# Windows DLL injection anti-screenshot demo
+add_subdirectory(injection-demo)
+
