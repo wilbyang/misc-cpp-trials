@@ -42,13 +42,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             hOldFont = (HFONT)SelectObject(hdc, hFont);
             
             SetTextColor(hdc, RGB(0, 0, 0));
-            const char* text2 = "This window is protected from screenshots.";
+            const char* text2 = "This window uses WDA_EXCLUDEFROMCAPTURE for native protection.";
             TextOut(hdc, 50, 100, text2, strlen(text2));
             
-            const char* text3 = "After DLL injection, screenshot attempts will be blocked.";
+            const char* text3 = "Modern tools (Win+Shift+S) cannot capture this window.";
             TextOut(hdc, 50, 130, text3, strlen(text3));
             
-            const char* text4 = "Run injector.exe to inject the hook DLL.";
+            const char* text4 = "DLL injection demos GDI BitBlt/StretchBlt hooking (legacy tools).";
             TextOut(hdc, 50, 160, text4, strlen(text4));
             
             // Display window handle for reference
@@ -107,6 +107,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     
     ShowWindow(hwnd, nCmdShow);
     UpdateWindow(hwnd);
+    
+    // Enable screenshot protection using SetWindowDisplayAffinity (Windows 10+)
+    // This blocks Desktop Duplication API used by modern screenshot tools
+    if (SetWindowDisplayAffinity(hwnd, WDA_EXCLUDEFROMCAPTURE)) {
+        OutputDebugString("Screenshot protection enabled via WDA_EXCLUDEFROMCAPTURE\n");
+    } else {
+        OutputDebugString("Failed to enable WDA_EXCLUDEFROMCAPTURE\n");
+    }
     
     // Message loop
     MSG msg = {};

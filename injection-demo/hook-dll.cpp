@@ -142,8 +142,8 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved) {
                     OutputDebugString("StretchBlt hooked successfully!\n");
                 }
                 
-                MessageBox(NULL, "Anti-screenshot hooks installed!\nTry taking a screenshot now.", 
-                          "Hook DLL", MB_OK | MB_ICONINFORMATION);
+                // Don't use MessageBox in DllMain - it blocks the loader lock!
+                // The hooks are now active
             } else {
                 OutputDebugString("Warning: Protected window not found!\n");
             }

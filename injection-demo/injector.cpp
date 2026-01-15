@@ -89,9 +89,31 @@ bool InjectDLL(DWORD processId, const char* dllPath) {
     }
     std::cout << "Remote thread created successfully" << std::endl;
     
-    // Wait for thread to complete
+    // Wait for thread to complete (with timeout)
     std::cout << "Waiting for DLL to load..." << std::endl;
-    WaitForSingleObject(hThread, INFINITE);
+    DWORD waitResult = WaitForSingleObject(hThread, 5000);  // 5 second timeout
+    
+    if (waitResult == WAIT_TIMEOUT) {
+        std::cerr << "Timeout waiting for DLL to load!" << std::endl;
+        std::cerr << "The remote thread may be stuck or failed to execute." << std::endl;
+        std::cerr << "Possible causes:" << std::endl;
+        std::cerr << "- DLL has dependencies that aren't available" << std::endl;
+        std::cerr << "- DEP (Data Execution Prevention) blocking execution" << std::endl;
+        std::cerr << "- The DLL's DllMain is hanging" << std::endl;
+        TerminateThread(hThread, 1);
+        CloseHandle(hThread);
+        VirtualFreeEx(hProcess, pRemoteBuf, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
+    
+    if (waitResult != WAIT_OBJECT_0) {
+        std::cerr << "Wait failed with error: " << GetLastError() << std::endl;
+        CloseHandle(hThread);
+        VirtualFreeEx(hProcess, pRemoteBuf, 0, MEM_RELEASE);
+        CloseHandle(hProcess);
+        return false;
+    }
     
     // Get thread exit code (HMODULE of loaded DLL)
     DWORD exitCode;
