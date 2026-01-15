@@ -39,3 +39,7 @@ target_link_libraries(bullet PRIVATE raylib ${BULLET_LIBRARIES})
 
 add_executable(tray-app WIN32 tray-app.cpp)
 
+# C++20 Coroutine async file reading demo
+add_executable(coroutine-file coroutine-file.cpp)
+set_target_properties(coroutine-file PROPERTIES CXX_STANDARD 20)
+
