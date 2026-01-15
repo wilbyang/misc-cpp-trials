@@ -43,3 +43,7 @@ add_executable(tray-app WIN32 tray-app.cpp)
 add_executable(coroutine-file coroutine-file.cpp)
 set_target_properties(coroutine-file PROPERTIES CXX_STANDARD 20)
 
+# C++20 Ranges-compatible custom container demo
+add_executable(ranges-container ranges-container.cpp)
+set_target_properties(ranges-container PROPERTIES CXX_STANDARD 20)
+
